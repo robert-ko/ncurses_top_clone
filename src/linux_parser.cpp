@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "format.h"
 #include "linux_parser.h"
@@ -11,6 +12,10 @@ using std::stol;
 using std::string;
 using std::to_string;
 using std::vector;
+
+
+#define printVariableNameAndValue(x) std::cout<< "The name of variable **" << (#x) << "** and the value of variable is => " << x << "\n";
+
 
 // DONE: An example of how to read data from the filesystem
 string LinuxParser::OperatingSystem() {
@@ -67,7 +72,7 @@ vector<int> LinuxParser::Pids() {
     }
   }
   closedir(directory);
-  printf("Pids %d", pids.size());  
+  printf("Pids %ld", pids.size());  
   return pids;
 }
 
@@ -77,7 +82,7 @@ float LinuxParser::MemoryUtilization() {
   string token, token_num, end_token;
   int MemTotal;
   int MemFree;
-  int MemAvail;
+  //int MemAvail;
   int MemUsed;
 
   //printf("MemoryUtilization()\n");
@@ -90,7 +95,7 @@ float LinuxParser::MemoryUtilization() {
     linestream >> token >> token_num >> end_token;
     MemFree = std::stoi(token_num);
     linestream >> token >> token_num >> end_token;
-    MemAvail = std::stoi(token_num);
+    //MemAvail = std::stoi(token_num);
   }
 
   MemUsed = MemTotal - MemFree;
@@ -98,8 +103,8 @@ float LinuxParser::MemoryUtilization() {
   return 1.0 * MemUsed / MemTotal;
 }
 
-// TODO: Read and return the system uptime
-long LinuxParser::UpTime() {
+// TODO: Read and return the system uptime (in sec)
+float LinuxParser::UpTime() {
   string line;
   string token, end_token;
   
@@ -110,10 +115,12 @@ long LinuxParser::UpTime() {
     std::getline(stream, line);
     std::istringstream linestream(line);
     linestream >> token >> end_token;
-    uptime = stol(token);
+    uptime = stof(token);
   }
   //printf("debug uptime %s\n", token.c_str());
-  return uptime;
+  
+
+  return uptime; 
 }
 
 // TODO: Read and return the number of jiffies for the system
@@ -382,4 +389,34 @@ long LinuxParser::UpTime(int pid) {
 
   //printf("Uptime         pid %s\n", token.c_str());
   return sec;
+}
+
+float LinuxParser::getCpuPercent(int pid)
+{
+    std::string path =  kProcDirectory + to_string(pid) + kStatFilename;
+    std::ifstream stream(path);
+    
+    string line;
+    std::getline(stream, line); // file contains only one line
+    std::istringstream buffer(line);
+    std::istream_iterator<string> beginning(buffer), end;
+    std::vector<string> line_content(beginning, end);
+    //float utime = LinuxParser::UpTime(pid);
+    float utime = stof(line_content[13]);
+    float stime = stof(line_content[14]);
+    float cutime = stof(line_content[15]);
+    float cstime = stof(line_content[16]);
+    float starttime = stof(line_content[21]);
+    float uptime = LinuxParser::UpTime();
+    float freq = sysconf(_SC_CLK_TCK);
+    float total_time = utime + stime + cutime + cstime;
+    float seconds = uptime - (starttime / freq);
+    float result = 1.0 * ((total_time / freq) / seconds);
+  
+    //if (pid == 1) {
+    //printVariableNameAndValue(utime)
+    //printVariableNameAndValue(total_time) 
+    //printVariableNameAndValue(uptime)
+    //}
+    return (result);
 }
